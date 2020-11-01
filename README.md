@@ -141,7 +141,7 @@ void main() {
 MyService.instance.doSomeJob();
 ```
 
-### Event better
+### Even better
 
 ```dart
 class MyService {
