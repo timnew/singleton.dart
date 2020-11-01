@@ -9,6 +9,8 @@ class TestObject {
 
   TestObject() : instanceId = _nextInstanceId++;
 
+  TestObject._() : instanceId = _nextInstanceId++;
+
   static int _nextInstanceId = 0;
 
   static int get nextInstanceId => _nextInstanceId;
@@ -185,8 +187,8 @@ void main() {
         expect(() => singleton.ensureValue(), throwsUnimplementedError);
       });
 
-      test("reset value not supported", () {
-        expect(() => singleton.resetValue(), throwsUnimplementedError);
+      test("reset value works", () {
+        expect(() => singleton.resetValue(), returnsNormally);
       });
 
       test("won't register itself", () {
