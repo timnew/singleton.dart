@@ -67,10 +67,12 @@ abstract class Singleton<T> {
   ///
   /// If singleton wrapper haven't been registered, a new wrapper will be created
   /// Else previously registered singleton wrapper will be returned
-  factory Singleton.lazy(SingletonFactory<T> factory) => _known[T] ?? _FactorySingleton<T>(factory);
+  factory Singleton.lazy(SingletonFactory<T> factory) =>
+      _known[T] ?? _FactorySingleton<T>(factory);
 
   Singleton._() {
-    if (_known.containsKey(T)) throw StateError("Double register for singleton $T");
+    if (_known.containsKey(T))
+      throw StateError("Double register for singleton $T");
 
     _known[T] = this;
   }
@@ -100,7 +102,8 @@ abstract class Singleton<T> {
   ///
   /// Only supported by singleton created with [Singleton.lazy].
   /// Others throws [UnsupportedError]
-  void resetValue() => throw UnsupportedError("Resetting value for $T is not supported");
+  void resetValue() =>
+      throw UnsupportedError("Resetting value for $T is not supported");
 
   /// A [FutureOr] use to ensure the value is created.
   ///
@@ -161,7 +164,8 @@ class _FutureSingleton<T> extends Singleton<T> {
 
   @override
   T get value {
-    if (_result == null) throw StateError("Singleton $T is used before get resolved");
+    if (_result == null)
+      throw StateError("Singleton $T is used before get resolved");
 
     if (_result.isError) throw _result.asError.error;
 
