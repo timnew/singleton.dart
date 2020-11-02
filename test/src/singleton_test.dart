@@ -49,8 +49,9 @@ void main() {
         expect(await singleton.ensuredInstance(), same(value));
       });
 
-      test("reset value not supported", () {
-        expect(() => singleton.resetValue(), throwsUnsupportedError);
+      test("deregister", () {
+        singleton.deregister();
+        expect(() => Singleton.register(TestObject()), returnsNormally);
       });
     });
 
@@ -108,8 +109,9 @@ void main() {
         expect(await singleton.ensuredInstance(), same(value));
       });
 
-      test("reset value not supported", () {
-        expect(() => singleton.resetValue(), throwsUnsupportedError);
+      test("deregister", () {
+        singleton.deregister();
+        expect(() => Singleton.register(TestObject()), returnsNormally);
       });
     });
 
@@ -132,7 +134,7 @@ void main() {
         final after1st = TestObject.nextInstanceId;
         expect(singleton.instance, isA<TestObject>());
         final after2nd = TestObject.nextInstanceId;
-        singleton.resetValue();
+        singleton.deregister();
         expect(singleton.instance, isA<TestObject>());
         final after3nd = TestObject.nextInstanceId;
 
@@ -159,10 +161,10 @@ void main() {
         expect(await singleton.ensuredInstance(), isA<TestObject>());
       });
 
-      test("reset value", () {
+      test("deregister", () {
         final first = singleton.instance;
         final second = singleton.instance;
-        singleton.resetValue();
+        singleton.deregister();
         final third = singleton.instance;
 
         expect([first, second, third], everyElement(isA<TestObject>()));
@@ -186,7 +188,7 @@ void main() {
       });
 
       test("reset value works", () {
-        expect(() => singleton.resetValue(), returnsNormally);
+        expect(() => singleton.deregister(), returnsNormally);
       });
 
       test("won't register itself", () {
@@ -203,8 +205,6 @@ void main() {
 
         timeCheckPoint = 0;
         completer = Completer();
-
-        Singleton.printKnownForTest();
 
         Singleton.lazy(() => "string");
         Singleton.register(Object());

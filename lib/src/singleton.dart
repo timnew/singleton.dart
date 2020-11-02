@@ -6,51 +6,7 @@ import 'package:meta/meta.dart';
 /// Factory to create singleton
 typedef T SingletonFactory<T>();
 
-/// A helper class makes singleton less hassle
-///
-/// For value type singleton
-/// ```dart
-/// Singleton.register(MyService());
-///
-/// class MyService {
-///   static MyService get instance => Singleton<MyService>().get();
-///
-///    MyService() {
-///      // constructor
-///    }
-/// }
-/// ```
-///
-/// For future type singleton
-/// ```dart
-/// Singleton.register(MyService.createAsync());
-///
-/// class MyService {
-///   static MyService get instance => Singleton<MyService>().get();
-///
-///   static Future<MyService> createAsync() {
-///     // create instance
-///   }
-/// }
-/// ```
-///
-/// For lazy type singleton
-/// ```dart
-/// class MyService {
-///   static MyService get instance => Singleton<MyService>.lazy(() => MyService._()).get();
-///
-///    MyService._() {
-///      // private constructor
-///    }
-/// }
-/// ```
-///
-/// To avoid singleton pollution in unit test
-/// ```dart
-/// tearDown(() {
-///   Singleton.resetAllForTest();
-/// });
-/// ```
+/// Singleton host to make singleton implementation easier
 abstract class Singleton<T> {
   static final Map<Type, Singleton> _known = Map();
 
@@ -61,7 +17,7 @@ abstract class Singleton<T> {
   ///
   /// [value] can be either a [Future] or value.
   factory Singleton.register(FutureOr<T> value) =>
-      value is Future<T> ? _FutureSingleton(value) : _ValueSingleton(value);
+      value is Future<T> ? _FutureSingleton(value) : _EagerSingleton(value);
 
   /// Register or fetch a lazy type singleton wrapper for [T]
   ///
@@ -75,7 +31,26 @@ abstract class Singleton<T> {
     _known[T] = this;
   }
 
-  /// Ensure all singleton instances exists
+  static dynamic _findSingletons(dynamic type, [bool allowList = true]) {
+    if (type == null) throw ArgumentError.notNull(type);
+
+    if (type is Type) {
+      Singleton singleton = _known[type] ?? {throw ArgumentError.value(type, "type", "Unknown singleton $type")};
+      return singleton;
+    }
+
+    if (type is Singleton) {
+      return type;
+    }
+
+    if (type is List && allowList) {
+      return type.map((e) => _findSingletons(e, false) as Singleton);
+    }
+
+    throw ArgumentError.value(type, "type", "Invalid single type $type");
+  }
+
+  /// Ensure [type] singleton instances exists
   ///
   /// Used as availability check point for future singletons
   ///
@@ -86,23 +61,18 @@ abstract class Singleton<T> {
   ///
   ///  await Singleton.ensureInstanceFor([MySingleton, MyAnotherSingleton]);
   /// ```
-  static Future ensureInstanceFor(dynamic key) {
-    if (key == null) throw ArgumentError.notNull(key);
+  static Future ensureInstanceFor(dynamic type) {
+    final singleton = _findSingletons(type);
 
-    if (key is Type) {
-      Singleton singleton = _known[key] ?? {throw UnimplementedError("Unknown singleton $key")};
+    if (singleton is Singleton) {
       return singleton.ensuredInstance();
-    }
+    } else {
+      print(singleton);
 
-    if (key is Singleton) {
-      return key.ensuredInstance();
-    }
+      final futures = (singleton as Iterable<Singleton>).map((e) => e.ensuredInstance());
 
-    if (key is List) {
-      return Future.wait(key.map((e) => ensureInstanceFor(e)));
+      return Future.wait(futures);
     }
-
-    throw ArgumentError("Invalid parameter types ${key.runtimeType}");
   }
 
   /// Debug API to clear all registered singleton to avoid pollution across tests caused by singleton
@@ -117,20 +87,27 @@ abstract class Singleton<T> {
     _known.clear();
   }
 
-  /// Debug API to print all known singleton wrappers
-  @visibleForTesting
-  static void printKnownForTest() {
-    print(_known);
+  /// Prints singletons of given [type]
+  /// if [type] are omitted, all singletons are printed.
+  static void debugPrintAll(dynamic type) {
+    final singleton = _findSingletons(type);
+
+    if (singleton is Iterable<Singleton>) {
+      print(singleton.toList(growable: false));
+    } else {
+      print(singleton);
+    }
   }
 
   /// Get value of singleton
   T get instance;
 
-  /// Clear cached instance, and recreate on next use.
+  /// Deregister singleton from registry
   ///
-  /// Only supported by singleton created with [Singleton.lazy].
-  /// Others throws [UnsupportedError]
-  void resetValue() => throw UnsupportedError("Resetting value for $T is not supported");
+  /// This should be rarely used.
+  void deregister() {
+    _known.remove(T);
+  }
 
   /// A [FutureOr] use to ensure the value is created.
   ///
@@ -157,7 +134,7 @@ class _UnknownSingleton<T> implements Singleton<T> {
   T get instance => _complains();
 
   @override
-  void resetValue() {
+  void deregister() {
     // Do thing
   }
 
@@ -165,10 +142,10 @@ class _UnknownSingleton<T> implements Singleton<T> {
   Future<T> ensuredInstance() => _complains();
 }
 
-class _ValueSingleton<T> extends Singleton<T> {
+class _EagerSingleton<T> extends Singleton<T> {
   final T instance;
 
-  _ValueSingleton(this.instance)
+  _EagerSingleton(this.instance)
       : assert(instance != null),
         super._();
 }
@@ -218,7 +195,8 @@ class _LazySingleton<T> extends Singleton<T> {
   T get instance => _value ?? (_value = factory());
 
   @override
-  void resetValue() {
+  void deregister() {
+    super.deregister();
     _value = null;
   }
 }
