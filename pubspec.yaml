@@ -1,6 +1,6 @@
 name: singleton
 description: Singleton make singleton implementation less hassle, and also make it more friendly to tests.
-version: 0.0.1
+version: 0.0.2
 homepage: https://github.com/timnew/singleton.dart
 
 environment:

@@ -21,7 +21,7 @@ void main() {
     final value = TestObject();
     Singleton<TestObject> singleton;
 
-    group("register value", () {
+    group("Eager Singleton", () {
       setUpAll(() {
         singleton = Singleton<TestObject>.register(value);
       });
@@ -55,7 +55,7 @@ void main() {
       });
     });
 
-    group("register future", () {
+    group("Future Singleton", () {
       Completer<TestObject> completer;
 
       setUp(() {
@@ -115,7 +115,7 @@ void main() {
       });
     });
 
-    group("lazy", () {
+    group("Lazy Singleton", () {
       setUp(() {
         singleton = Singleton.lazy(() => TestObject());
       });
@@ -174,7 +174,7 @@ void main() {
       });
     });
 
-    group("unknown", () {
+    group("Unknown Singleton", () {
       setUp(() {
         singleton = Singleton<TestObject>();
       });
