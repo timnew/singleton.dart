@@ -189,10 +189,12 @@ abstract class Singleton<T> {
   ///
   /// If singleton wrapper haven't been registered, a new wrapper will be created
   /// Else previously registered singleton wrapper will be returned
-  factory Singleton.lazy(SingletonFactory<T> factory) => _known[T] ?? _LazySingleton<T>(factory);
+  factory Singleton.lazy(SingletonFactory<T> factory) =>
+      _known[T] ?? _LazySingleton<T>(factory);
 
   Singleton._() {
-    if (_known.containsKey(T)) throw StateError("Double register for singleton $T");
+    if (_known.containsKey(T))
+      throw StateError("Double register for singleton $T");
 
     _known[T] = this;
   }
@@ -201,7 +203,8 @@ abstract class Singleton<T> {
     if (type == null) throw ArgumentError.notNull(type);
 
     if (type is Type) {
-      Singleton singleton = _known[type] ?? {throw ArgumentError.value(type, "type", "Unknown singleton $type")};
+      Singleton singleton = _known[type] ??
+          {throw ArgumentError.value(type, "type", "Unknown singleton $type")};
       return singleton;
     }
 
@@ -235,7 +238,8 @@ abstract class Singleton<T> {
     } else {
       print(singleton);
 
-      final futures = (singleton as Iterable<Singleton>).map((e) => e.ensuredInstance());
+      final futures =
+          (singleton as Iterable<Singleton>).map((e) => e.ensuredInstance());
 
       return Future.wait(futures);
     }
@@ -334,7 +338,8 @@ class _FutureSingleton<T> extends Singleton<T> {
 
   @override
   T get instance {
-    if (_result == null) throw StateError("Singleton $T is used before being resolved");
+    if (_result == null)
+      throw StateError("Singleton $T is used before being resolved");
 
     if (_result.isError) throw _result.asError.error;
 
