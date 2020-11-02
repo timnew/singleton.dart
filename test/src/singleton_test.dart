@@ -9,8 +9,6 @@ class TestObject {
 
   TestObject() : instanceId = _nextInstanceId++;
 
-  TestObject._() : instanceId = _nextInstanceId++;
-
   static int _nextInstanceId = 0;
 
   static int get nextInstanceId => _nextInstanceId;
@@ -37,18 +35,18 @@ void main() {
       });
 
       test("get value", () {
-        expect(singleton.value, same(value));
+        expect(singleton.instance, same(value));
       });
 
       test("recreate singleton", () {
         final recreated = Singleton<TestObject>();
 
         expect(recreated, same(singleton));
-        expect(recreated.value, same(value));
+        expect(recreated.instance, same(value));
       });
 
-      test("ensure value", () {
-        expect(singleton.ensureValue(), same(value));
+      test("ensure value", () async {
+        expect(await singleton.ensuredInstance(), same(value));
       });
 
       test("reset value not supported", () {
@@ -76,11 +74,11 @@ void main() {
         completer.complete(value);
 
         await breath();
-        expect(singleton.value, same(value));
+        expect(singleton.instance, same(value));
       });
 
       test("throw state error before future is resolved", () {
-        expect(() => singleton.value, throwsStateError);
+        expect(() => singleton.instance, throwsStateError);
       });
 
       test("rethrow error on get value", () async {
@@ -89,7 +87,7 @@ void main() {
         completer.completeError(exception);
         await breath();
 
-        expect(() => singleton.value, throwsA(same(exception)));
+        expect(() => singleton.instance, throwsA(same(exception)));
       });
 
       test("recreate singleton", () async {
@@ -99,15 +97,15 @@ void main() {
         completer.complete(value);
         await breath();
 
-        expect(recreated.value, same(value));
+        expect(recreated.instance, same(value));
       });
 
       test("ensure value", () async {
-        expect(singleton.ensureValue(), isA<Future<TestObject>>());
+        expect(singleton.ensuredInstance(), isA<Future<TestObject>>());
 
         completer.complete(value);
 
-        expect(await singleton.ensureValue(), same(value));
+        expect(await singleton.ensuredInstance(), same(value));
       });
 
       test("reset value not supported", () {
@@ -125,17 +123,17 @@ void main() {
       });
 
       test("get value", () {
-        expect(singleton.value, isA<TestObject>());
+        expect(singleton.instance, isA<TestObject>());
       });
 
       test("create on demand", () {
         final base = TestObject.nextInstanceId;
-        expect(singleton.value, isA<TestObject>());
+        expect(singleton.instance, isA<TestObject>());
         final after1st = TestObject.nextInstanceId;
-        expect(singleton.value, isA<TestObject>());
+        expect(singleton.instance, isA<TestObject>());
         final after2nd = TestObject.nextInstanceId;
         singleton.resetValue();
-        expect(singleton.value, isA<TestObject>());
+        expect(singleton.instance, isA<TestObject>());
         final after3nd = TestObject.nextInstanceId;
 
         expect(after1st, base + 1);
@@ -147,25 +145,25 @@ void main() {
         final recreated = Singleton<TestObject>();
 
         expect(recreated, same(singleton));
-        expect(recreated.value, same(singleton.value));
+        expect(recreated.instance, same(singleton.instance));
       });
 
       test("re-register won't complain", () {
         final recreated = Singleton.lazy(() => TestObject());
 
         expect(recreated, same(singleton));
-        expect(recreated.value, same(singleton.value));
+        expect(recreated.instance, same(singleton.instance));
       });
 
-      test("ensure value", () {
-        expect(singleton.ensureValue(), isA<TestObject>());
+      test("ensure value", () async {
+        expect(await singleton.ensuredInstance(), isA<TestObject>());
       });
 
-      test(" reset value", () {
-        final first = singleton.value;
-        final second = singleton.value;
+      test("reset value", () {
+        final first = singleton.instance;
+        final second = singleton.instance;
         singleton.resetValue();
-        final third = singleton.value;
+        final third = singleton.instance;
 
         expect([first, second, third], everyElement(isA<TestObject>()));
 
@@ -180,11 +178,11 @@ void main() {
       });
 
       test("get value", () {
-        expect(() => singleton.value, throwsUnimplementedError);
+        expect(() => singleton.instance, throwsUnimplementedError);
       });
 
       test("ensure value", () {
-        expect(() => singleton.ensureValue(), throwsUnimplementedError);
+        expect(() => singleton.ensuredInstance(), throwsUnimplementedError);
       });
 
       test("reset value works", () {
@@ -193,6 +191,83 @@ void main() {
 
       test("won't register itself", () {
         expect(() => Singleton.register(TestObject()), returnsNormally);
+      });
+    });
+
+    group("ensureInstanceFor", () {
+      Completer<TestObject> completer;
+      int timeCheckPoint;
+
+      setUp(() {
+        Singleton.resetAllForTest();
+
+        timeCheckPoint = 0;
+        completer = Completer();
+
+        Singleton.printKnownForTest();
+
+        Singleton.lazy(() => "string");
+        Singleton.register(Object());
+        Singleton.register(completer.future);
+      });
+
+      tearDown(() {
+        Singleton.resetAllForTest();
+      });
+
+      Future checkSingletons(int before, int after) async {
+        expect(timeCheckPoint, before);
+        expect(() => Singleton<TestObject>().instance, throwsStateError);
+
+        await Singleton.ensureInstanceFor([String, Object, TestObject]);
+
+        expect(Singleton<TestObject>().instance, isA<TestObject>());
+        expect(timeCheckPoint, after);
+      }
+
+      test("it ensure time sequence", () async {
+        final future = checkSingletons(0, 1);
+
+        timeCheckPoint++;
+        completer.complete(TestObject());
+
+        await future;
+      });
+
+      test("it support type", () async {
+        expect(() => Singleton<TestObject>().instance, throwsStateError);
+
+        completer.complete(TestObject());
+        await Singleton.ensureInstanceFor(TestObject);
+
+        expect(Singleton<TestObject>().instance, isA<TestObject>());
+      });
+
+      test("it support singleton", () async {
+        expect(() => Singleton<TestObject>().instance, throwsStateError);
+
+        completer.complete(TestObject());
+        await Singleton.ensureInstanceFor(Singleton<TestObject>());
+
+        expect(Singleton<TestObject>().instance, isA<TestObject>());
+      });
+
+      test("it support type in list", () async {
+        expect(() => Singleton<TestObject>().instance, throwsStateError);
+
+        completer.complete(TestObject());
+        await Singleton.ensureInstanceFor([TestObject]);
+
+        expect(Singleton<TestObject>().instance, isA<TestObject>());
+      });
+
+      test("it support singleton in list", () async {
+        expect(() => Singleton<TestObject>().instance, throwsStateError);
+
+        completer.complete(TestObject());
+        await Singleton.ensureInstanceFor([Singleton<TestObject>()]);
+
+        expect(Singleton<TestObject>().instance, isA<TestObject>());
       });
     });
   });

@@ -67,20 +67,42 @@ abstract class Singleton<T> {
   ///
   /// If singleton wrapper haven't been registered, a new wrapper will be created
   /// Else previously registered singleton wrapper will be returned
-  factory Singleton.lazy(SingletonFactory<T> factory) =>
-      _known[T] ?? _FactorySingleton<T>(factory);
+  factory Singleton.lazy(SingletonFactory<T> factory) => _known[T] ?? _LazySingleton<T>(factory);
 
   Singleton._() {
-    if (_known.containsKey(T))
-      throw StateError("Double register for singleton $T");
+    if (_known.containsKey(T)) throw StateError("Double register for singleton $T");
 
     _known[T] = this;
   }
 
-  /// Debug API to print all known singleton wrappers
-  @visibleForTesting
-  static void printKnownForTest() {
-    print(_known);
+  /// Ensure all singleton instances exists
+  ///
+  /// Used as availability check point for future singletons
+  ///
+  /// ```dart
+  /// await Singleton.ensureInstanceFor(MySingleton);
+  ///
+  /// await Singleton.ensureInstanceFor(Singleton<MySingleton>());
+  ///
+  ///  await Singleton.ensureInstanceFor([MySingleton, MyAnotherSingleton]);
+  /// ```
+  static Future ensureInstanceFor(dynamic key) {
+    if (key == null) throw ArgumentError.notNull(key);
+
+    if (key is Type) {
+      Singleton singleton = _known[key] ?? {throw UnimplementedError("Unknown singleton $key")};
+      return singleton.ensuredInstance();
+    }
+
+    if (key is Singleton) {
+      return key.ensuredInstance();
+    }
+
+    if (key is List) {
+      return Future.wait(key.map((e) => ensureInstanceFor(e)));
+    }
+
+    throw ArgumentError("Invalid parameter types ${key.runtimeType}");
   }
 
   /// Debug API to clear all registered singleton to avoid pollution across tests caused by singleton
@@ -95,15 +117,20 @@ abstract class Singleton<T> {
     _known.clear();
   }
 
+  /// Debug API to print all known singleton wrappers
+  @visibleForTesting
+  static void printKnownForTest() {
+    print(_known);
+  }
+
   /// Get value of singleton
-  T get value;
+  T get instance;
 
   /// Clear cached instance, and recreate on next use.
   ///
   /// Only supported by singleton created with [Singleton.lazy].
   /// Others throws [UnsupportedError]
-  void resetValue() =>
-      throw UnsupportedError("Resetting value for $T is not supported");
+  void resetValue() => throw UnsupportedError("Resetting value for $T is not supported");
 
   /// A [FutureOr] use to ensure the value is created.
   ///
@@ -119,7 +146,7 @@ abstract class Singleton<T> {
   /// final instance = await MyService.createAsync()
   /// Singleton.register(instance);
   /// ```
-  FutureOr<T> ensureValue() => value;
+  Future<T> ensuredInstance() async => instance;
 }
 
 class _UnknownSingleton<T> implements Singleton<T> {
@@ -127,7 +154,7 @@ class _UnknownSingleton<T> implements Singleton<T> {
   Never _complains() => throw UnimplementedError("Unknown singleton $T");
 
   @override
-  T get value => _complains();
+  T get instance => _complains();
 
   @override
   void resetValue() {
@@ -135,14 +162,14 @@ class _UnknownSingleton<T> implements Singleton<T> {
   }
 
   @override
-  FutureOr<T> ensureValue() => _complains();
+  Future<T> ensuredInstance() => _complains();
 }
 
 class _ValueSingleton<T> extends Singleton<T> {
-  final T value;
+  final T instance;
 
-  _ValueSingleton(this.value)
-      : assert(value != null),
+  _ValueSingleton(this.instance)
+      : assert(instance != null),
         super._();
 }
 
@@ -163,9 +190,8 @@ class _FutureSingleton<T> extends Singleton<T> {
   }
 
   @override
-  T get value {
-    if (_result == null)
-      throw StateError("Singleton $T is used before get resolved");
+  T get instance {
+    if (_result == null) throw StateError("Singleton $T is used before being resolved");
 
     if (_result.isError) throw _result.asError.error;
 
@@ -173,23 +199,23 @@ class _FutureSingleton<T> extends Singleton<T> {
   }
 
   @override
-  Future<T> ensureValue() async {
+  Future<T> ensuredInstance() async {
     await _future;
 
-    return value;
+    return instance;
   }
 }
 
-class _FactorySingleton<T> extends Singleton<T> {
+class _LazySingleton<T> extends Singleton<T> {
   final SingletonFactory<T> factory;
   T _value;
 
-  _FactorySingleton(this.factory)
+  _LazySingleton(this.factory)
       : assert(factory != null),
         super._();
 
   @override
-  T get value => _value ?? (_value = factory());
+  T get instance => _value ?? (_value = factory());
 
   @override
   void resetValue() {
