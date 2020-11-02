@@ -1,10 +1,10 @@
 name: singleton
-description: Singleton without hassle
+description: Singleton make singleton implementation less hassle, and also make it more friendly to tests.
 version: 0.0.1
 homepage: https://github.com/timnew/singleton.dart
 
 environment:
-  sdk: ">=2.7.0 <3.0.0"
+  sdk: '>=2.7.0 <3.0.0'
 
 dependencies:
   meta: ^1.2.3
