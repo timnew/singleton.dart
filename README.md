@@ -58,7 +58,7 @@ class MyLazyService {
   }
 }
 
-MyLazyService.instnace.doSomething();
+MyLazyService.instance.doSomething();
 ```
 It is working but boring to write, and it has some issues, such as pollutes test.
 
