@@ -2,6 +2,7 @@
 
 [![Star this Repo](https://img.shields.io/github/stars/timnew/singleton.dart.svg?style=flat-square)](https://github.com/timnew/singleton.dart)
 [![Pub Package](https://img.shields.io/pub/v/singleton.svg?style=flat-square)](https://pub.dev/packages/singleton)
+[![Build Status](https://img.shields.io/github/workflow/status/timnew/singleton.dart/Run-Test)](https://github.com/timnew/singleton.dart)
 
 ## Why create this library
 
