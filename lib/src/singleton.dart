@@ -205,6 +205,9 @@ abstract class Singleton<T> {
   static T lazy<T>(SingletonFactory<T> factory, {String? name = null}) =>
       Singleton.registerLazy(factory, name: name).instance;
 
+  /// Retrieve an pre-registered singleton For [T] via [register].
+  static T get<T>({String? name = null}) => Singleton<T>(name).instance;
+
   final SingletonKey key;
 
   Singleton._(String? name) : key = SingletonKey(T, name) {

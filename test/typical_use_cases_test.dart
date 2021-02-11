@@ -16,7 +16,7 @@ class MyApi {}
 
 class MyEagerService {
   /// Factory method that reuse same instance automatically
-  factory MyEagerService() => Singleton<MyEagerService>().instance;
+  factory MyEagerService() => Singleton.get<MyEagerService>();
 
   final MyApi api;
 
