@@ -19,7 +19,7 @@ Future breath() async {}
 void main() {
   group("Singleton", () {
     final value = TestObject();
-    Singleton<TestObject> singleton;
+    late Singleton<TestObject> singleton;
 
     group("Eager Singleton", () {
       setUpAll(() {
@@ -56,7 +56,7 @@ void main() {
     });
 
     group("Future Singleton", () {
-      Completer<TestObject> completer;
+      late Completer<TestObject> completer;
 
       setUp(() {
         completer = Completer();
@@ -117,7 +117,7 @@ void main() {
 
     group("Lazy Singleton", () {
       setUp(() {
-        singleton = Singleton.lazy(() => TestObject());
+        singleton = Singleton.registerLazy(() => TestObject());
       });
 
       tearDown(() {
@@ -151,7 +151,7 @@ void main() {
       });
 
       test("re-register won't complain", () {
-        final recreated = Singleton.lazy(() => TestObject());
+        final recreated = Singleton.registerLazy(() => TestObject());
 
         expect(recreated, same(singleton));
         expect(recreated.instance, same(singleton.instance));
@@ -197,8 +197,8 @@ void main() {
     });
 
     group("ensureInstanceFor", () {
-      Completer<TestObject> completer;
-      int timeCheckPoint;
+      late Completer<TestObject> completer;
+      late int timeCheckPoint;
 
       setUp(() {
         Singleton.resetAllForTest();

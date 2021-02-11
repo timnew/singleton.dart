@@ -174,38 +174,55 @@ typedef T SingletonFactory<T>();
 /// MyService().doSomething();
 /// ```
 abstract class Singleton<T> {
-  static final Map<Type, Singleton> _known = Map();
+  static final Map<SingletonKey, Singleton> _known = Map();
 
   /// Get the singleton wrapper for type [T}
-  factory Singleton() => _known[T] ?? _UnknownSingleton<T>();
+  factory Singleton([String? name = null]) =>
+      (_known[SingletonKey(T, name)] ?? _UnknownSingleton<T>(name))
+          as Singleton<T>;
 
   /// Register a singleton [T] with given [value]
   ///
   /// [value] can be either a [Future] or value.
-  factory Singleton.register(FutureOr<T> value) =>
-      value is Future<T> ? _FutureSingleton(value) : _EagerSingleton(value);
+  factory Singleton.register(FutureOr<T> value, {String? name = null}) =>
+      value is Future<T>
+          ? _FutureSingleton(name, value)
+          : _EagerSingleton(name, value);
 
   /// Register or fetch a lazy type singleton wrapper for [T]
   ///
   /// If singleton wrapper haven't been registered, a new wrapper will be created
   /// Else previously registered singleton wrapper will be returned
-  factory Singleton.lazy(SingletonFactory<T> factory) =>
-      _known[T] ?? _LazySingleton<T>(factory);
+  factory Singleton.registerLazy(SingletonFactory<T> factory,
+          {String? name = null}) =>
+      (_known[SingletonKey(T, name)] ?? _LazySingleton<T>(name, factory))
+          as Singleton<T>;
 
-  Singleton._() {
-    if (_known.containsKey(T))
+  /// Register or fetch a lazy singleton for [T]
+  ///
+  /// If singleton wrapper haven't been registered, a new wrapper will be created
+  /// Else previously registered singleton wrapper will be returned
+  static T lazy<T>(SingletonFactory<T> factory, {String? name = null}) =>
+      Singleton.registerLazy(factory, name: name).instance;
+
+  final SingletonKey key;
+
+  Singleton._(String? name) : key = SingletonKey(T, name) {
+    if (_known.containsKey(key))
       throw StateError("Double register for singleton $T");
 
-    _known[T] = this;
+    _known[key] = this;
   }
 
   static dynamic _findSingletons(dynamic type, [bool allowList = true]) {
     if (type == null) throw ArgumentError.notNull(type);
 
+    if (type is SingletonKey) {
+      return _getSingleton(type);
+    }
+
     if (type is Type) {
-      Singleton singleton = _known[type] ??
-          {throw ArgumentError.value(type, "type", "Unknown singleton $type")};
-      return singleton;
+      return _getSingleton(SingletonKey(type));
     }
 
     if (type is Singleton) {
@@ -218,6 +235,9 @@ abstract class Singleton<T> {
 
     throw ArgumentError.value(type, "type", "Invalid single type $type");
   }
+
+  static Singleton _getSingleton(SingletonKey key) =>
+      _known[key] ?? key.throwNotFoundException();
 
   /// Ensure [type] singleton instances exists
   ///
@@ -275,8 +295,8 @@ abstract class Singleton<T> {
   /// Deregister singleton from registry
   ///
   /// This should be rarely used.
-  void deregister() {
-    _known.remove(T);
+  void deregister([String? name = null]) {
+    _known.remove(SingletonKey(T, name));
   }
 
   /// A [FutureOr] use to ensure the value is created.
@@ -296,15 +316,46 @@ abstract class Singleton<T> {
   Future<T> ensuredInstance() async => instance;
 }
 
+class SingletonKey {
+  final Type type;
+  final String? name;
+  SingletonKey(this.type, [this.name = null]);
+
+  @override
+  int get hashCode => type.hashCode ^ (name?.hashCode ?? 0);
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! SingletonKey) return false;
+
+    return other.type == type && other.name == name;
+  }
+
+  Never throwNotFoundException() {
+    if (name == null) {
+      throw ArgumentError.value(this, "key", "Unknown singleton $type");
+    } else {
+      throw ArgumentError.value(
+          this, "key", "Unknown singleton $type with name $name");
+    }
+  }
+}
+
 class _UnknownSingleton<T> implements Singleton<T> {
-  // ignore: sdk_version_never
-  Never _complains() => throw UnimplementedError("Unknown singleton $T");
+  @override
+  final SingletonKey key;
+
+  _UnknownSingleton([String? name]) : key = SingletonKey(T, name);
+
+  Never _complains() {
+    throw UnimplementedError("Unknown singleton $T");
+  }
 
   @override
   T get instance => _complains();
 
   @override
-  void deregister() {
+  void deregister([String? name = null]) {
     // Do thing
   }
 
@@ -315,18 +366,16 @@ class _UnknownSingleton<T> implements Singleton<T> {
 class _EagerSingleton<T> extends Singleton<T> {
   final T instance;
 
-  _EagerSingleton(this.instance)
+  _EagerSingleton(String? name, this.instance)
       : assert(instance != null),
-        super._();
+        super._(name);
 }
 
 class _FutureSingleton<T> extends Singleton<T> {
-  Result<T> _result;
-  Future _future;
+  late final Result<T> _result;
+  late Future _future;
 
-  _FutureSingleton(Future<T> unresolved)
-      : assert(unresolved != null),
-        super._() {
+  _FutureSingleton(String? name, Future<T> unresolved) : super._(name) {
     _future = _resolve(unresolved);
   }
 
@@ -338,12 +387,16 @@ class _FutureSingleton<T> extends Singleton<T> {
 
   @override
   T get instance {
-    if (_result == null)
+    try {
+      _result;
+    } on Error {
+      // For some reason it reject to use `LateInitializationError`
       throw StateError("Singleton $T is used before being resolved");
+    }
 
-    if (_result.isError) throw _result.asError.error;
+    if (_result.isError) throw _result.asError!.error;
 
-    return _result.asValue.value;
+    return _result.asValue!.value;
   }
 
   @override
@@ -356,18 +409,16 @@ class _FutureSingleton<T> extends Singleton<T> {
 
 class _LazySingleton<T> extends Singleton<T> {
   final SingletonFactory<T> factory;
-  T _value;
+  T? _value;
 
-  _LazySingleton(this.factory)
-      : assert(factory != null),
-        super._();
+  _LazySingleton(String? name, this.factory) : super._(name);
 
   @override
   T get instance => _value ?? (_value = factory());
 
   @override
-  void deregister() {
-    super.deregister();
+  void deregister([String? name = null]) {
+    super.deregister(name);
     _value = null;
   }
 }

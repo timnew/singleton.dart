@@ -3,7 +3,7 @@ import 'package:test/test.dart';
 
 class MyLazyService {
   /// Factory method that reuse same instance automatically
-  factory MyLazyService() => Singleton.lazy(() => MyLazyService._()).instance;
+  factory MyLazyService() => Singleton.lazy(() => MyLazyService._());
 
   /// Private constructor
   MyLazyService._() {}
