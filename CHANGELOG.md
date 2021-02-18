@@ -1,3 +1,11 @@
+# Change Log
+
+## [0.0.3-nullsafety] - 2021-02-18
+
+* Introduce null-safety
+* Simplify the API
+* Add `name`
+
 ## [0.0.2] - 2020-11-02
 
 * Rewrite the document from scratch
