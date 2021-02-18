@@ -42,7 +42,7 @@ class HttpClient {
 
 class MyFutureService {
   /// Factory method that reuse same instance automatically
-  factory MyFutureService() => Singleton<MyFutureService>().instance;
+  factory MyFutureService() => Singleton.get<MyFutureService>();
 
   static Future<MyFutureService> createInstance() async {
     final appSettings = await Singleton<AppSettings>().ensuredInstance();

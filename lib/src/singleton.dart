@@ -15,7 +15,7 @@ typedef T SingletonFactory<T>();
 /// ```dart
 /// class MyLazyService {
 ///   /// Factory method that reuse same instance automatically
-///   factory MyLazyService() => Singleton.lazy(() => MyLazyService._()).instance;
+///   factory MyLazyService() => Singleton.lazy(() => MyLazyService._());
 ///
 ///   /// Private constructor
 ///   MyLazyService._() {}
@@ -38,7 +38,7 @@ typedef T SingletonFactory<T>();
 /// ```dart
 /// class MyEagerService {
 ///   /// Factory method that reuse same instance automatically
-///   factory MyEagerService() => Singleton<MyEagerService>().instance;
+///   factory MyEagerService() => Singleton.get<MyEagerService>();
 ///
 ///   final MyApi api;
 ///
@@ -96,7 +96,7 @@ typedef T SingletonFactory<T>();
 /// ```dart
 /// class MyFutureService {
 ///   /// Factory method that reuse same instance automatically
-///   factory MyFutureService() => Singleton<MyFutureService>().instance;
+///   factory MyFutureService() => Singleton.get<MyFutureService>();
 ///
 ///   static Future<MyFutureService> createInstance() async {
 ///     final appSettings = await Singleton<AppSettings>().ensuredInstance();
@@ -210,7 +210,7 @@ abstract class Singleton<T> {
 
   final SingletonKey key;
 
-  Singleton._(String? name) : key = SingletonKey(T, name) {
+  Singleton._([String? name = null]) : key = SingletonKey(T, name) {
     if (_known.containsKey(key))
       throw StateError("Double register for singleton $T");
 
@@ -249,9 +249,13 @@ abstract class Singleton<T> {
   /// ```dart
   /// await Singleton.ensureInstanceFor(MySingleton);
   ///
-  /// await Singleton.ensureInstanceFor(Singleton<MySingleton>());
+  /// await Singleton.ensureInstanceFor(Singleton<MyService>());
   ///
-  ///  await Singleton.ensureInstanceFor([MySingleton, MyAnotherSingleton]);
+  /// await Singleton.ensureInstanceFor([MySingleton, MyAnotherSingleton]);
+  ///
+  /// await Singleton.ensureInstanceFor(Singleton.key<MyService>("service1"));
+  ///
+  /// await Singleton.ensureInstanceFor([Singleton.withName<MyService>("service1"), Singleton.withName<MyService>("service2")]);
   /// ```
   static Future ensureInstanceFor(dynamic type) {
     final singleton = _findSingletons(type);
@@ -267,6 +271,15 @@ abstract class Singleton<T> {
       return Future.wait(futures);
     }
   }
+
+  /// Create [SingletonKey] for given type [T] and [name]
+  ///
+  /// It is equivilent to call [SingletonKey] constructor
+  /// ```dart
+  /// Single.withName<T>(name) == SingletonKey(T, name)
+  /// ```
+  static SingletonKey withName<T>([String? name = null]) =>
+      SingletonKey(T, name);
 
   /// Debug API to clear all registered singleton to avoid pollution across tests caused by singleton
   ///
